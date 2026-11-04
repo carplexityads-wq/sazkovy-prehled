@@ -65,6 +65,19 @@ def sezona_start(mesic_zacatku=7):
     return DNES.year if DNES.month >= mesic_zacatku else DNES.year - 1
 
 
+def sjednot(nazev, tymy):
+    """Rozpis občas píše jméno jinak než výsledky (KV Mechelen x Mechelen)."""
+    import difflib
+    n = nazev.strip()
+    if n in tymy:
+        return n
+    for t in tymy:
+        if t.lower() in n.lower() or n.lower() in t.lower():
+            return t
+    m = difflib.get_close_matches(n, tymy, n=1, cutoff=0.6)
+    return m[0] if m else n
+
+
 # ---------------------------------------------------------------- FOTBAL
 LIGY = {"E0": "Anglie", "I1": "Itálie", "D1": "Německo", "SP1": "Španělsko",
         "F1": "Francie", "N1": "Nizozemsko", "B1": "Belgie", "P1": "Portugalsko"}
@@ -103,7 +116,8 @@ def fotbal():
     for r in rows(stahni("https://www.football-data.co.uk/fixtures.csv")):
         d = datum(r.get("Date", ""))
         if r.get("Div") in ligy and d and DNES <= d <= DNES + dt.timedelta(days=DNI):
-            zapasy.append([d.isoformat(), r.get("Time", ""), r["Div"], r["HomeTeam"].strip(), r["AwayTeam"].strip()])
+            jm = [t[0] for t in ligy[r["Div"]]["tymy"]]
+            zapasy.append([d.isoformat(), r.get("Time", ""), r["Div"], sjednot(r["HomeTeam"], jm), sjednot(r["AwayTeam"], jm)])
     zapasy.sort()
     return {"nazev": "Fotbal", "stat": "rohy", "ligy": ligy, "zapasy": zapasy}
 
@@ -138,7 +152,7 @@ def nhl():
     sch = stahni_json("https://api-web.nhle.com/v1/schedule/now") or {}
     for den in sch.get("gameWeek", []):
         for g in den.get("games", []):
-            if g.get("gameType") != 2:
+            if g.get("gameType") != 2 or g.get("gameState") not in ("FUT", "PRE"):
                 continue
             ha, aa = g["homeTeam"]["abbrev"], g["awayTeam"]["abbrev"]
             if ha in tymy and aa in tymy:
@@ -149,27 +163,35 @@ def nhl():
 
 # ---------------------------------------------------------------- NBA
 def nba():
-    data = stahni_json("https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json")
-    hist, jmena, zapasy = defaultdict(list), {}, []
-    for den in data["leagueSchedule"]["gameDates"]:
-        for g in den["games"]:
-            gid = str(g.get("gameId", ""))
-            if not gid.startswith("002"):          # 002 = základní část
-                continue
-            h, a = g["homeTeam"], g["awayTeam"]
-            if not h.get("teamName") or not a.get("teamName"):
-                continue
-            hn, an = f'{h["teamCity"]} {h["teamName"]}', f'{a["teamCity"]} {a["teamName"]}'
-            jmena[hn] = jmena[an] = True
-            utc = g.get("gameDateTimeUTC") or g.get("gameDateUTC")
-            d = dt.datetime.fromisoformat(utc.replace("Z", "+00:00")).date()
-            if g.get("gameStatus") == 3:
-                hist[hn].append((d, h["score"], a["score"], True))
-                hist[an].append((d, a["score"], h["score"], False))
-            elif g.get("gameStatus") == 1 and DNES <= d <= DNES + dt.timedelta(days=DNI):
-                zapasy.append([d.isoformat(), cas_praha(utc), "NBA", hn, an])
+    """ESPN veřejné API (cdn.nba.com blokuje servery GitHubu)."""
+    base = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/{}/schedule"
+    y = sezona_start(9) + 1                      # ESPN značí sezónu 2026/27 jako 2027
+    hist, jmena, zapasy, videno, budouci = defaultdict(list), set(), [], set(), set()
+    for tid in range(1, 31):
+        for q in ("", f"?season={y - 1}&seasontype=2"):
+            data = stahni_json(base.format(tid) + q) or {}
+            for ev in data.get("events", []):
+                if (ev.get("seasonType") or {}).get("type") != 2:
+                    continue
+                comp = ev["competitions"][0]
+                cs = {c["homeAway"]: c for c in comp["competitors"]}
+                if "home" not in cs or "away" not in cs:
+                    continue
+                hn, an = cs["home"]["team"]["displayName"], cs["away"]["team"]["displayName"]
+                jmena |= {hn, an}
+                d = dt.datetime.fromisoformat(ev["date"].replace("Z", "+00:00"))
+                if comp["status"]["type"].get("completed"):
+                    if ev["id"] in videno:
+                        continue
+                    videno.add(ev["id"])
+                    hs, as_ = float(cs["home"]["score"]["value"]), float(cs["away"]["score"]["value"])
+                    hist[hn].append((d.date(), hs, as_, True))
+                    hist[an].append((d.date(), as_, hs, False))
+                elif ev["id"] not in budouci and DNES <= d.date() <= DNES + dt.timedelta(days=DNI):
+                    budouci.add(ev["id"])
+                    zapasy.append([d.date().isoformat(), cas_praha(ev["date"]), "NBA", hn, an])
     zapasy.sort()
-    ligy = {"NBA": {"nazev": "NBA", "tymy": [[t] + souhrn(hist[t]) for t in sorted(jmena)]}}
+    ligy = {"NBA": {"nazev": "NBA", "tymy": [[t] + [round(x) if isinstance(x, float) else x for x in souhrn(hist[t])] for t in sorted(jmena)]}}
     print(f"   ✓ NBA: {len(jmena)} týmů")
     return {"nazev": "NBA", "stat": "body", "ligy": ligy, "zapasy": zapasy}
 

@@ -157,7 +157,8 @@ def nhl():
             ha, aa = g["homeTeam"]["abbrev"], g["awayTeam"]["abbrev"]
             if ha in tymy and aa in tymy:
                 cas = cas_praha(g.get("startTimeUTC"))
-                zapasy.append([den["date"], cas, "NHL", tymy[ha], tymy[aa]])
+                zapasy.append([den_praha(g.get("startTimeUTC"), den["date"]), cas, "NHL", tymy[ha], tymy[aa]])
+    zapasy.sort()
     return {"nazev": "NHL", "stat": "góly", "ligy": ligy, "zapasy": zapasy}
 
 
@@ -189,11 +190,21 @@ def nba():
                     hist[an].append((d.date(), as_, hs, False))
                 elif ev["id"] not in budouci and DNES <= d.date() <= DNES + dt.timedelta(days=DNI):
                     budouci.add(ev["id"])
-                    zapasy.append([d.date().isoformat(), cas_praha(ev["date"]), "NBA", hn, an])
+                    zapasy.append([den_praha(ev["date"], d.date().isoformat()), cas_praha(ev["date"]), "NBA", hn, an])
     zapasy.sort()
     ligy = {"NBA": {"nazev": "NBA", "tymy": [[t] + [round(x) if isinstance(x, float) else x for x in souhrn(hist[t])] for t in sorted(jmena)]}}
     print(f"   ✓ NBA: {len(jmena)} týmů")
     return {"nazev": "NBA", "stat": "body", "ligy": ligy, "zapasy": zapasy}
+
+
+def den_praha(utc, zaloha):
+    """Datum zápasu podle pražského času (zápas v 1:30 u nás je už další den)."""
+    if not utc:
+        return zaloha
+    t = dt.datetime.fromisoformat(utc.replace("Z", "+00:00"))
+    h, m = map(int, cas_praha(utc).split(":"))
+    posun = (h * 60 + m - (t.hour * 60 + t.minute)) % (24 * 60)
+    return (t + dt.timedelta(minutes=posun)).date().isoformat()
 
 
 def cas_praha(utc):

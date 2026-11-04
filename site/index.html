@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="cs"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sázkový přehled</title>
+<meta name="theme-color" content="#1f7a46">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Přehled">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f4f6f3;--panel:#fff;--fg:#14211a;--muted:#5d6d63;--line:#d9e1db;--accent:#1f7a46;--soft:#e3f1e8;--over:#b45309;--under:#2563eb;
+ --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1712;--panel:#16211a;--fg:#e6efe9;--muted:#93a59a;--line:#2a3a30;--accent:#4cc27c;--soft:#1c3324;--over:#f59e0b;--under:#60a5fa;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;-webkit-text-size-adjust:100%}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) max(16px,env(safe-area-inset-right)) 8px max(16px,env(safe-area-inset-left));border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:22px}
+.stamp{color:var(--muted);font-size:12px;margin:2px 0 8px}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;font:inherit;font-size:14px;padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg)}
+.tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+main{padding:14px max(16px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 30px) max(16px,env(safe-area-inset-left));display:grid;gap:18px;max-width:900px;margin:0 auto}
+main>*,.card{min-width:0}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.list{display:grid;gap:10px}
+.m-top{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.m-teams{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:6px 0 8px}
+.m-teams b{display:block;font-size:16px}
+.m-exp{text-align:right;flex:none}
+.m-exp span{display:block;font-family:var(--mono);font-size:26px;font-weight:700;color:var(--accent);line-height:1}
+.m-exp small{font-size:11px;color:var(--muted)}
+.lines{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px dashed var(--line);padding-top:8px}
+.lines label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+input,select{font:inherit;font-size:16px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);min-width:0}
+input.ln{width:70px;text-align:right}
+.v{font-weight:700;font-size:13px}.v.o{color:var(--over)}.v.u{color:var(--under)}
+.calc{display:grid;gap:10px}
+.calc .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.calc label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.calc .res{display:flex;align-items:center;gap:14px}
+.big{font-family:var(--mono);font-size:40px;font-weight:700;color:var(--accent)}
+.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+td:first-child{font-family:var(--body);font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+td.e{color:var(--accent);font-weight:700}
+.few td{opacity:.55}
+.empty{color:var(--muted);font-size:14px}
+.note{color:var(--muted);font-size:12px;line-height:1.45}
+.warn{color:var(--over);font-size:13px}
+#install{display:none}
+</style>
+</head><body>
+<header>
+  <h1>Sázkový přehled</h1>
+  <p class="stamp" id="stamp">Načítám data…</p>
+  <div class="tabs" id="sports"></div>
+</header>
+<main>
+  <p class="warn" id="warn" hidden></p>
+  <section>
+    <h2 id="up-h">Nadcházející zápasy</h2>
+    <div class="list" id="up"></div>
+  </section>
+  <section class="card calc">
+    <h2>Kalkulačka zápasu</h2>
+    <label>Soutěž<select id="c-lg"></select></label>
+    <div class="row">
+      <label>Domácí<select id="c-h"></select></label>
+      <label>Hosté<select id="c-a"></select></label>
+    </div>
+    <div class="res">
+      <div class="big" id="c-exp">–</div>
+      <label style="display:grid;gap:4px;font-size:12px;color:var(--muted)">Linie<input id="c-l" class="ln" inputmode="decimal" placeholder="9.5"></label>
+      <span class="v" id="c-v"></span>
+    </div>
+  </section>
+  <section class="card">
+    <h2 id="tm-h">Týmy</h2>
+    <div class="tabs" id="lgs" style="margin-bottom:8px"></div>
+    <div class="tbl"><table><thead><tr id="tm-head"></tr></thead><tbody id="tm"></tbody></table></div>
+  </section>
+  <p class="note">Čísla jsou z posledních 20 zápasů každého týmu. Odhad = (vlastní domácích + co dostávají hosté)/2 + (vlastní hostů + co dostávají domácí)/2. Linie opiš z Tipsportu nebo Fortuny, verdikt OVER/UNDER se ukáže hned a linie se v telefonu zapamatují. Šedé řádky = méně zápasů v datech. Data se aktualizují samy každé ráno. Zdroje: football-data.co.uk, NHL, NBA.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const f1=x=>isFinite(x)?x.toFixed(1):"–";
+const T=r=>({name:r[0],n:r[1],vp:r[2]/r[1],sp:r[3]/r[1],hp:r[4]?r[5]/r[4]:NaN,ap:r[7]?r[8]/r[7]:NaN,v:r[2],s:r[3]});
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let DATA,sport,league,sortK=6,asc=false;
+const DNY=["ne","po","út","st","čt","pá","so"];
+
+function find(lg,name){const r=DATA.sporty[sport].ligy[lg]?.tymy.find(t=>t[0]===name);return r&&r[1]?T(r):null}
+const expect=(h,a)=>(h.vp+a.sp)/2+(a.vp+h.sp)/2;
+function verdict(e,line){const v=parseFloat(String(line).replace(",","."));if(!isFinite(v)||!isFinite(e))return["",""];const d=e-v;
+  return Math.abs(d)<0.5?["vyrovnané","v"]:d>0?[`OVER +${d.toFixed(1)}`,"v o"]:[`UNDER ${d.toFixed(1)}`,"v u"]}
+
+async function load(){
+  try{const r=await fetch("data.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;DATA=await r.json();
+    try{localStorage.setItem("data",JSON.stringify(DATA))}catch(e){}}
+  catch(e){try{DATA=JSON.parse(localStorage.getItem("data"))}catch(_){}}
+  if(!DATA){$("stamp").textContent="Data se nepodařilo načíst. Zkontroluj internet a zkus to znovu.";return}
+  const d=new Date(DATA.vytvoreno);
+  $("stamp").textContent=`Aktualizováno ${d.getDate()}.${d.getMonth()+1}. ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;
+  if(DATA.chyby&&DATA.chyby.length){$("warn").hidden=false;$("warn").textContent="Dnes se nepodařilo obnovit: "+DATA.chyby.join(", ")+" – zobrazují se poslední dostupná data."}
+  const sp=$("sports");sp.innerHTML="";
+  for(const k in DATA.sporty){const b=document.createElement("button");b.textContent=DATA.sporty[k].nazev+" · "+DATA.sporty[k].stat;b.dataset.k=k;b.onclick=()=>setSport(k);sp.appendChild(b)}
+  const saved=store.get("sport");setSport(saved&&DATA.sporty[saved]?saved:Object.keys(DATA.sporty)[0]);
+}
+
+function setSport(k){sport=k;store.set("sport",k);
+  $("sports").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===k));
+  const S=DATA.sporty[k];$("up-h").textContent=`Nadcházející zápasy · ${S.stat}`;
+  renderUp();
+  const lg=$("lgs"),cl=$("c-lg");lg.innerHTML="";cl.innerHTML="";const keys=Object.keys(S.ligy);
+  for(const c of keys){cl.add(new Option(S.ligy[c].nazev,c));if(keys.length>1){const b=document.createElement("button");b.textContent=S.ligy[c].nazev;b.dataset.k=c;b.onclick=()=>setLeague(c);lg.appendChild(b)}}
+  lg.hidden=keys.length<2;cl.parentElement.hidden=keys.length<2;
+  setLeague(keys[0]);
+}
+
+function renderUp(){const S=DATA.sporty[sport],box=$("up");box.innerHTML="";
+  if(!S.zapasy.length){box.innerHTML=`<p class="empty card">Na příštích 7 dní zatím nejsou zápasy v rozpisu.${sport==="fotbal"?" Fotbalový rozpis se zveřejňuje obvykle ve čtvrtek nebo v pátek před víkendem. Do té doby použij kalkulačku.":""}</p>`;return}
+  for(const [d,cas,lg,hn,an] of S.zapasy){
+    const h=find(lg,hn),a=find(lg,an),e=h&&a?expect(h,a):NaN,dd=new Date(d+"T12:00"),key=`${sport}|${d}|${hn}|${an}`;
+    const c=document.createElement("div");c.className="card";
+    c.innerHTML=`<div class="m-top"><span>${DNY[dd.getDay()]} ${dd.getDate()}.${dd.getMonth()+1}. ${cas}</span><span>${S.ligy[lg].nazev}</span></div>
+      <div class="m-teams"><div style="min-width:0"><b></b><b></b></div><div class="m-exp"><span>${f1(e)}</span><small>odhad</small></div></div>
+      <div class="lines"><label>Tipsport <input class="ln" data-b="ts" inputmode="decimal"> <span class="v"></span></label>
+      <label>Fortuna <input class="ln" data-b="fo" inputmode="decimal"> <span class="v"></span></label></div>`;
+    const bs=c.querySelectorAll(".m-teams b");bs[0].textContent=hn;bs[1].textContent=an;
+    c.querySelectorAll("input").forEach(inp=>{const k=key+"|"+inp.dataset.b,out=inp.nextElementSibling;inp.value=store.get(k)||"";
+      const upd=()=>{const [t,cl]=verdict(e,inp.value);out.textContent=t;out.className=cl||"v";store.set(k,inp.value)};inp.oninput=upd;upd()});
+    box.appendChild(c)}
+}
+
+function setLeague(c){league=c;$("lgs").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===c));$("c-lg").value=c;
+  const names=DATA.sporty[sport].ligy[c].tymy.filter(t=>t[1]).map(t=>t[0]);
+  for(const id of["c-h","c-a"]){const s=$(id);s.innerHTML="";names.forEach(n=>s.add(new Option(n,n)))}$("c-a").selectedIndex=1;calc();renderTeams()}
+function calc(){const h=find(league,$("c-h").value),a=find(league,$("c-a").value);const e=h&&a&&h.name!==a.name?expect(h,a):NaN;
+  $("c-exp").textContent=f1(e);const [t,c]=verdict(e,$("c-l").value);$("c-v").textContent=t;$("c-v").className=c||"v"}
+$("c-lg").onchange=e=>setLeague(e.target.value);$("c-h").onchange=calc;$("c-a").onchange=calc;$("c-l").oninput=calc;
+
+function renderTeams(){const st=DATA.sporty[sport].stat;
+  const heads=["Tým","Záp.","Ø "+st,"Ø soupeř","Ø celkem","Ø doma","Ø venku"],keys=[0,1,3,5,6,7,8];
+  $("tm-h").textContent="Týmy · "+DATA.sporty[sport].ligy[league].nazev;
+  $("tm-head").innerHTML=heads.map((h,i)=>`<th data-k="${keys[i]}">${h}</th>`).join("");
+  $("tm-head").querySelectorAll("th").forEach(th=>th.onclick=()=>{const k=+th.dataset.k;asc=sortK===k?!asc:k===0;sortK=k;renderTeams()});
+  const rows=DATA.sporty[sport].ligy[league].tymy.filter(r=>r[1]).map(r=>{const t=T(r);return[t.name,t.n,t.v,t.vp,t.s,t.sp,t.vp+t.sp,t.hp,t.ap]});
+  rows.sort((a,b)=>{const x=a[sortK],y=b[sortK];const c=typeof x==="string"?x.localeCompare(y):x-y;return asc?c:-c});
+  const tb=$("tm");tb.innerHTML="";
+  for(const r of rows){const tr=document.createElement("tr");if(r[1]<DATA.N)tr.className="few";
+    tr.innerHTML=`<td></td><td>${r[1]}</td><td>${f1(r[3])}</td><td>${f1(r[5])}</td><td class="e">${f1(r[6])}</td><td>${f1(r[7])}</td><td>${f1(r[8])}</td>`;
+    tr.firstChild.textContent=r[0];tb.appendChild(tr)}}
+
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+load();
+</script>
+</body></html>
